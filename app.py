@@ -260,13 +260,12 @@ def traceUserInfuence(userId,depth):
                              'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                              'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
                              'r1.business_id = r2.business_id and r1.date < r2.date' % (user_ids[k]))
+            for j in cu:
+                user_ids.append(j[0])
             k += 1
-            
-        for j in cu:
-            user_ids.append(j[0])
-
+                
     tu = tuple(user_ids)
     
-    print tu
+    #print tu
     
     return [("user_id",), (tu[1:],)]
