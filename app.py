@@ -249,23 +249,39 @@ def traceUserInfuence(userId,depth):
     cur=con.cursor()
     
     user_ids = []
-    user_ids.append(userId)
-    k = 0
+    business_ids = []
+    #user_ids.append(userId)
+    k = -1
     
     for i in range(int(depth)):
         #k = 0
+        print i
         while k < len(user_ids):
-            cu = cur.execute('SELECT f.friend_id '
-                             'FROM user u1, user u2, reviews r1, reviews r2, friends f '
-                             'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
-                             'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
-                             'r1.business_id = r2.business_id and r1.date < r2.date' % (user_ids[k]))
+            if k == -1:
+                cu = cur.execute('SELECT f.friend_id, r1.business_id '
+                                'FROM user u1, user u2, reviews r1, reviews r2, friends f '
+                                'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
+                                'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
+                                'r1.business_id = r2.business_id and r1.date < r2.date' % (userId))
+            else:
+                cu = cur.execute('SELECT f.friend_id, r1.business_id'
+                                'FROM user u1, user u2, reviews r1, reviews r2, friends f '
+                                'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
+                                'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
+                                'r1.business_id = r2.business_id and r1.business_id = "%s" and r1.date < r2.date' % (user_ids[k], business_ids[k]))
+           
             for j in cu:
                 user_ids.append(j[0])
+                business_ids.append(j[1])
+                #print user_ids
+            
+            print len(user_ids), len(business_ids)
+            
             k += 1
                 
     tu = tuple(user_ids)
     
     #print tu
     
-    return [("user_id",), (tu[1:],)]
+    return [("user_id",), (tu,)]
+    
