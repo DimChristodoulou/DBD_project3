@@ -235,11 +235,17 @@ def selectTopNbusinesses(category_id, n):
                      "ORDER BY count(rpn.positive) DESC "
                      "LIMIT %s;" % (category_id, n))
 
-    tup = ()
+    l = []
     for i in cu:
-        tup += (i)
-
-    return [("business_id", "numberOfreviews"), tup]
+        l.append(i)
+    
+    print l
+    
+    tu = tuple(l)
+    
+    print tu
+    
+    return [("business_id", "numberOfreviews"), tu]
 
 
 def traceUserInfuence(userId,depth):
@@ -263,25 +269,31 @@ def traceUserInfuence(userId,depth):
                                 'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                                 'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
                                 'r1.business_id = r2.business_id and r1.date < r2.date' % (userId))
+                
             else:
-                cu = cur.execute('SELECT f.friend_id, r1.business_id'
+                print user_ids[k], business_ids[k]
+                cu = cur.execute('SELECT f.friend_id, r1.business_id '
                                 'FROM user u1, user u2, reviews r1, reviews r2, friends f '
                                 'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                                 'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
                                 'r1.business_id = r2.business_id and r1.business_id = "%s" and r1.date < r2.date' % (user_ids[k], business_ids[k]))
-           
+            
+            #print "AFTER QUERY"
+            
             for j in cu:
+                #print j[0], j[1]
                 user_ids.append(j[0])
                 business_ids.append(j[1])
-                #print user_ids
             
-            print len(user_ids), len(business_ids)
             
             k += 1
-                
+    
+    
+    
+    
     tu = tuple(user_ids)
     
     #print tu
     
-    return [("user_id",), (tu,)]
+    return [("user_id",), tu]
     
