@@ -26,22 +26,19 @@ def classify_review(reviewid):
     l_negterms = []
     l_posterms = []
 
-    cu_txt = cur.execute('select textwindow(text,0,0,3) from reviews where review_id = "%s"' % (reviewid))
+    cu = cur.execute('select var("arg",?)', (reviewid,))
+    
+    cu_txt = cur.execute('select textwindow(text,0,0,3) from reviews where var("arg")')
 
     j = 0
     for i in cu_txt:
         l_text.append(i)
-        # print l_text[j]
-        # j += 1
 
     cu_negterms = cur.execute('select word from negterms')
 
     for i in cu_negterms:
         l_negterms.append(i[0])
-        # print i[0]
-        # print len(i[0].split())
 
-    # print "NEG"
     sum_neg = 0
     i = 0
     temp = ""
@@ -57,14 +54,10 @@ def classify_review(reviewid):
                     temp = temp + " " + negterm
         i += 1
 
-    # print "POS"
-
     cu_posterms = cur.execute('select word from posterms')
 
     for i in cu_posterms:
         l_posterms.append(i[0])
-        # print i[0]
-        # print len(i[0].split())
 
     sum_pos = 0
     i = 0
@@ -76,23 +69,17 @@ def classify_review(reviewid):
             temp = ""
         for posterm in l_posterms:
             found = l_text[i][0].find(posterm)
-            # print contains
             if found != -1:
                 if temp.find(posterm) == -1:
                     sum_pos += len(posterm.split())
                     temp = temp + " " + posterm
         i += 1
 
-    cu_name = cur.execute(
-        'select name from reviews, business where reviews.business_id = business.business_id and review_id = "%s"' % (
-        reviewid))
+    myargs2 = (reviewid,)
+
+    cu_name = cur.execute('select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
 
     name = cu_name.fetchone()[0]
-    # for i in l_neg:
-    # sum_neg += i[0]
-
-    # for i in l_pos:
-    # sum_pos += i[0]
 
     print sum_neg, '|', sum_pos
 
@@ -111,7 +98,9 @@ def classify_review_plain_sql(reviewid):
     # Create a cursor on the connection
     cur = con.cursor()
 
-    cu_txt = cur.execute('select text from reviews where review_id = "%s"' % (reviewid))
+    myargs1 = (reviewid,)
+
+    cu_txt = cur.execute('select text from reviews where review_id = ?', myargs1)
 
     text = cu_txt.fetchone()[0]
 
@@ -156,15 +145,12 @@ def classify_review_plain_sql(reviewid):
 
     for i in cu_posterms:
         l_posterms.append(i[0])
-        # print i[0]
-        # print len(i[0].split())
 
     sum_pos = 0
     temp = ""
     i = 0
 
     while i < len(l_text):
-        # flag = 0
 
         if (i + 2) < len(l_text):
             curr_string = l_text[i] + " " + l_text[i + 1] + " " + l_text[i + 2]
@@ -184,9 +170,9 @@ def classify_review_plain_sql(reviewid):
                     temp = temp + " " + posterm
         i += 1
 
-    cu_name = cur.execute(
-        'select name from reviews, business where reviews.business_id = business.business_id and review_id = "%s"' % (
-        reviewid))
+    myargs2 = (reviewid,)
+
+    cu_name = cur.execute('select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
 
     name = cu_name.fetchone()[0]
 
@@ -207,11 +193,14 @@ def updatezipcode(business_id, zipcode):
 
     # Create a cursor on the connection
     cur = con.cursor()
-    cur.execute("UPDATE business SET zip_code='%s' WHERE business_id='%s'" % (zipcode, business_id))
+
+    myargs1 = (zipcode, business_id)
+    myargs2 = (business_id, zipcode)
+
+    cur.execute("UPDATE business SET zip_code=? WHERE business_id=?", myargs1)
 
     newcur = con.cursor()
-    newcur.execute("select exists(SELECT business_id FROM business WHERE business_id='%s' and zip_code='%s')" % (
-        business_id, zipcode))
+    newcur.execute("select exists(SELECT business_id FROM business WHERE business_id=? and zip_code=?)", myargs2)
     data = newcur.fetchone()
     if data == (0,):
         return [("result",), ('error',)]
@@ -223,24 +212,24 @@ def selectTopNbusinesses(category_id, n):
     # Create a new connection
 
     con = connection()
+    tu = ()
+    narg = (category_id, n,)
 
     # Create a cursor on the connection
     cur = con.cursor()
     cu = cur.execute("SELECT b.business_id, count(rpn.positive) "
                      "FROM business b,business_category bc,category c, reviews r, reviews_pos_neg rpn "
-                     "WHERE b.business_id = bc.business_id and bc.category_id = c.category_id and c.category_id = %s and "
+                     "WHERE b.business_id = bc.business_id and bc.category_id = c.category_id and c.category_id = ? and "
                      "b.business_id = r.business_id and r.review_id = rpn.review_id "
                      "GROUP BY b.business_id "
                      "ORDER BY count(rpn.positive) DESC "
-                     "LIMIT %s;" % (category_id, n))
+                     "LIMIT ?;", narg)
 
     l = []
     for i in cu:
-        l.append(i)
+        tu += i
 
     print l
-
-    tu = tuple(l)
 
     print tu
 
@@ -255,37 +244,35 @@ def traceUserInfuence(userId, depth):
 
     user_ids = []
     business_ids = []
-    # user_ids.append(userId)
     k = -1
     depthcounter = 1
+    arg1 = (userId,)
 
-    # k = 0
     while k < len(user_ids):
         print depthcounter
         if k == -1:
 
             cu = cur.execute('SELECT f.friend_id, r1.business_id '
                              'FROM user u1, user u2, reviews r1, reviews r2, friends f '
-                             'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
+                             'WHERE u1.user_id = ? and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                              'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
-                             'r1.business_id = r2.business_id and r1.date < r2.date' % (userId))
+                             'r1.business_id = r2.business_id and r1.date < r2.date', arg1)
 
         else:
             if depthcounter <= int(depth):
+                myargs = (user_ids[k], business_ids[k])
                 print user_ids[k], business_ids[k]
                 cu = cur.execute('SELECT f.friend_id, r1.business_id '
                                  'FROM user u1, user u2, reviews r1, reviews r2, friends f '
-                                 'WHERE u1.user_id = "%s" and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
+                                 'WHERE u1.user_id = ? and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                                  'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
-                                 'r1.business_id = r2.business_id and r1.business_id = "%s" and r1.date < r2.date' %
-                                 (user_ids[k], business_ids[k]))
+                                 'r1.business_id = r2.business_id and r1.business_id = ? and r1.date < r2.date', myargs)
             else:
                 break
 
         print "AFTER QUERY"
 
         for j in cu:
-            # print j[0], j[1]
             user_ids.append(j[0])
             business_ids.append(j[1])
 
@@ -293,7 +280,5 @@ def traceUserInfuence(userId, depth):
         k += 1
 
     tu = tuple(user_ids)
-
-    # print tu
 
     return [("user_id",), tu]
