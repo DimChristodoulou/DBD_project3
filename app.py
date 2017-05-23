@@ -88,7 +88,7 @@ def classify_review(reviewid):
     else:
         result = "positive"
 
-    return [("business_name", "result"), (name, result)]
+    return [("business_name", "result"), [(name, result)]]
 
 
 def classify_review_plain_sql(reviewid):
@@ -183,7 +183,7 @@ def classify_review_plain_sql(reviewid):
     else:
         result = "positive"
 
-    return [("business_name", "result"), (name, result)]
+    return [("business_name", "result"), [(name, result)]]
 
 
 def updatezipcode(business_id, zipcode):
@@ -212,7 +212,7 @@ def selectTopNbusinesses(category_id, n):
     # Create a new connection
 
     con = connection()
-    tu = ()
+    
     narg = (category_id, n,)
 
     # Create a cursor on the connection
@@ -227,13 +227,12 @@ def selectTopNbusinesses(category_id, n):
 
     l = []
     for i in cu:
-        tu += i
+        l.append(i)
 
-    print l
+    #print l
 
-    print tu
-
-    return [("business_id", "numberOfreviews"), tu]
+    #print tu
+    return [("business_id", "numberOfreviews") , l]
 
 
 def traceUserInfuence(userId, depth):
@@ -249,7 +248,7 @@ def traceUserInfuence(userId, depth):
     arg1 = (userId,)
 
     while k < len(user_ids):
-        print depthcounter
+    
         if k == -1:
 
             cu = cur.execute('SELECT f.friend_id, r1.business_id '
@@ -270,15 +269,18 @@ def traceUserInfuence(userId, depth):
             else:
                 break
 
-        print "AFTER QUERY"
-
         for j in cu:
             user_ids.append(j[0])
             business_ids.append(j[1])
 
         depthcounter += 1
         k += 1
+        print user_ids
 
-    tu = tuple(user_ids)
+    l = []
+    for i in user_ids:
+        l.append(tuple([i]))
+    
+    print l
 
-    return [("user_id",), tu]
+    return [("user_id",), l]
