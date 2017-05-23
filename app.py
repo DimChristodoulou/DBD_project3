@@ -26,24 +26,19 @@ def classify_review(reviewid):
     l_negterms = []
     l_posterms = []
 
-    myargs1 = (reviewid,)
-
-    cu_txt = cur.execute('select textwindow(text,0,0,3) from reviews where review_id = ?', myargs1)
+    cu = cur.execute('select var("arg",?)', (reviewid,))
+    
+    cu_txt = cur.execute('select textwindow(text,0,0,3) from reviews where var("arg")')
 
     j = 0
     for i in cu_txt:
         l_text.append(i)
-        # print l_text[j]
-        # j += 1
 
     cu_negterms = cur.execute('select word from negterms')
 
     for i in cu_negterms:
         l_negterms.append(i[0])
-        # print i[0]
-        # print len(i[0].split())
 
-    # print "NEG"
     sum_neg = 0
     i = 0
     temp = ""
@@ -59,14 +54,10 @@ def classify_review(reviewid):
                     temp = temp + " " + negterm
         i += 1
 
-    # print "POS"
-
     cu_posterms = cur.execute('select word from posterms')
 
     for i in cu_posterms:
         l_posterms.append(i[0])
-        # print i[0]
-        # print len(i[0].split())
 
     sum_pos = 0
     i = 0
@@ -78,7 +69,6 @@ def classify_review(reviewid):
             temp = ""
         for posterm in l_posterms:
             found = l_text[i][0].find(posterm)
-            # print contains
             if found != -1:
                 if temp.find(posterm) == -1:
                     sum_pos += len(posterm.split())
@@ -87,15 +77,9 @@ def classify_review(reviewid):
 
     myargs2 = (reviewid,)
 
-    cu_name = cur.execute(
-        'select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
+    cu_name = cur.execute('select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
 
     name = cu_name.fetchone()[0]
-    # for i in l_neg:
-    # sum_neg += i[0]
-
-    # for i in l_pos:
-    # sum_pos += i[0]
 
     print sum_neg, '|', sum_pos
 
@@ -161,15 +145,12 @@ def classify_review_plain_sql(reviewid):
 
     for i in cu_posterms:
         l_posterms.append(i[0])
-        # print i[0]
-        # print len(i[0].split())
 
     sum_pos = 0
     temp = ""
     i = 0
 
     while i < len(l_text):
-        # flag = 0
 
         if (i + 2) < len(l_text):
             curr_string = l_text[i] + " " + l_text[i + 1] + " " + l_text[i + 2]
@@ -191,8 +172,7 @@ def classify_review_plain_sql(reviewid):
 
     myargs2 = (reviewid,)
 
-    cu_name = cur.execute(
-        'select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
+    cu_name = cur.execute('select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
 
     name = cu_name.fetchone()[0]
 
@@ -264,12 +244,10 @@ def traceUserInfuence(userId, depth):
 
     user_ids = []
     business_ids = []
-    # user_ids.append(userId)
     k = -1
     depthcounter = 1
     arg1 = (userId,)
 
-    # k = 0
     while k < len(user_ids):
         print depthcounter
         if k == -1:
@@ -288,15 +266,13 @@ def traceUserInfuence(userId, depth):
                                  'FROM user u1, user u2, reviews r1, reviews r2, friends f '
                                  'WHERE u1.user_id = ? and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                                  'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
-                                 'r1.business_id = r2.business_id and r1.business_id = ? and r1.date < r2.date',
-                                 myargs)
+                                 'r1.business_id = r2.business_id and r1.business_id = ? and r1.date < r2.date', myargs)
             else:
                 break
 
         print "AFTER QUERY"
 
         for j in cu:
-            # print j[0], j[1]
             user_ids.append(j[0])
             business_ids.append(j[1])
 
@@ -304,7 +280,5 @@ def traceUserInfuence(userId, depth):
         k += 1
 
     tu = tuple(user_ids)
-
-    # print tu
 
     return [("user_id",), tu]
