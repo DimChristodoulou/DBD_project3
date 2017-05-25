@@ -16,7 +16,6 @@ def connection():
 
 def classify_review(reviewid):
     # Create a new connection
-    # Create a new connection
     con = connection()
 
     # Create a cursor on the connection
@@ -26,9 +25,9 @@ def classify_review(reviewid):
     l_negterms = []
     l_posterms = []
 
-    cu = cur.execute('select var("arg",?)', (reviewid,))
+    cur.execute('select var("arg",?)', (reviewid,))
     
-    cu_txt = cur.execute('select textwindow(text,0,0,3) from reviews where var("arg")')
+    cu_txt = cur.execute('select textwindow(text,0,0,3) from reviews where review_id = var("arg")') # take 3 words each time the middle pointer moves
 
     j = 0
     for i in cu_txt:
@@ -40,17 +39,18 @@ def classify_review(reviewid):
         l_negterms.append(i[0])
 
     sum_neg = 0
-    i = 0
     temp = ""
+    i = 0
+    # calculate the count of negterms in text
     while i < len(l_text):
         flag = 0
-        if i % 3 == 0:
-            temp = ""
+        if i % 3 == 0: # every three moves of middle pointer (from textwindow)
+            temp = "" # reset temp variable
         for negterm in l_negterms:
             found = l_text[i][0].find(negterm)
-            if found != -1:
-                if temp.find(negterm) == -1:
-                    sum_neg += len(negterm.split())
+            if found != -1: # if negterm was found in curr_string
+                if temp.find(negterm) == -1: # if negterm was not found in temp(it is not a part of an existing negterm)
+                    sum_neg += len(negterm.split()) # add the count of negterm's words to sum_neg
                     temp = temp + " " + negterm
         i += 1
 
@@ -60,9 +60,9 @@ def classify_review(reviewid):
         l_posterms.append(i[0])
 
     sum_pos = 0
-    i = 0
     temp = ""
-
+    i = 0
+    # calculate the count of posterms in text in exactly the same way as above
     while i < len(l_text):
         flag = 0
         if i % 3 == 0:
@@ -80,8 +80,6 @@ def classify_review(reviewid):
     cu_name = cur.execute('select name from reviews, business where reviews.business_id = business.business_id and review_id = ?', myargs2)
 
     name = cu_name.fetchone()[0]
-
-    print sum_neg, '|', sum_pos
 
     if sum_neg >= sum_pos:
         result = "negative"
@@ -102,16 +100,13 @@ def classify_review_plain_sql(reviewid):
 
     cu_txt = cur.execute('select text from reviews where review_id = ?', myargs1)
 
-    text = cu_txt.fetchone()[0]
+    text = cu_txt.fetchone()[0] # get only the string from the tuple
 
-    # print text
     l_text = []
-    l_text = text.split()
+    l_text = text.split() # divide text into single words
 
     l_negterms = []
     l_posterms = []
-
-    # print l_text
 
     cu_negterms = cur.execute('select word from negterms')
 
@@ -120,9 +115,11 @@ def classify_review_plain_sql(reviewid):
 
     sum_neg = 0
     temp = ""
+    
     i = 0
-
+    # calculate the count of negterms in text
     while i < len(l_text):
+        # implement the functionality of textwindow
         if (i + 2) < len(l_text):
             curr_string = l_text[i] + " " + l_text[i + 1] + " " + l_text[i + 2]
         elif (i + 1) < len(l_text):
@@ -130,14 +127,14 @@ def classify_review_plain_sql(reviewid):
         else:
             curr_string = l_text[i]
 
-        if i % 3 == 0:
-            temp = ""
+        if i % 3 == 0: # every three words
+            temp = "" # reset temp variable
 
         for negterm in l_negterms:
             found = curr_string.find(negterm)
-            if found != -1:
-                if temp.find(negterm) == -1:
-                    sum_neg += len(negterm.split())
+            if found != -1: # if negterm was found in curr_string
+                if temp.find(negterm) == -1: # if negterm was not found in temp(it is not a part of an existing negterm)
+                    sum_neg += len(negterm.split()) # add the count of negterm's words to sum_neg
                     temp = temp + " " + negterm
         i += 1
 
@@ -148,8 +145,9 @@ def classify_review_plain_sql(reviewid):
 
     sum_pos = 0
     temp = ""
+    
     i = 0
-
+    # calculate the count of posterms in text in exactly the same way as above
     while i < len(l_text):
 
         if (i + 2) < len(l_text):
@@ -176,8 +174,6 @@ def classify_review_plain_sql(reviewid):
 
     name = cu_name.fetchone()[0]
 
-    print sum_neg, '|', sum_pos
-
     if sum_neg >= sum_pos:
         result = "negative"
     else:
@@ -188,7 +184,6 @@ def classify_review_plain_sql(reviewid):
 
 def updatezipcode(business_id, zipcode):
     # Create a new connection
-
     con = connection()
 
     # Create a cursor on the connection
@@ -201,56 +196,55 @@ def updatezipcode(business_id, zipcode):
 
     newcur = con.cursor()
     newcur.execute("select exists(SELECT business_id FROM business WHERE business_id=? and zip_code=?)", myargs2)
-    data = newcur.fetchone()
-    if data == (0,):
-        return [("result",), ('error',)]
+    
+    data = newcur.fetchone()[0]
+    
+    if data == 0:
+        return [("result",), [('error',)]]
     else:
-        return [("result",), ('ok',)]
+        return [("result",), [('ok',)]]
 
 
 def selectTopNbusinesses(category_id, n):
     # Create a new connection
-
     con = connection()
-    
-    narg = (category_id, n,)
 
     # Create a cursor on the connection
     cur = con.cursor()
-    cu = cur.execute("SELECT b.business_id, count(rpn.positive) "
+    
+    narg = (category_id, n,)
+    cu = cur.execute("SELECT b.business_id, sum(rpn.positive) "
                      "FROM business b,business_category bc,category c, reviews r, reviews_pos_neg rpn "
                      "WHERE b.business_id = bc.business_id and bc.category_id = c.category_id and c.category_id = ? and "
                      "b.business_id = r.business_id and r.review_id = rpn.review_id "
                      "GROUP BY b.business_id "
-                     "ORDER BY count(rpn.positive) DESC "
+                     "ORDER BY sum(rpn.positive) DESC "
                      "LIMIT ?;", narg)
 
     l = []
     for i in cu:
         l.append(i)
 
-    #print l
-
-    #print tu
     return [("business_id", "numberOfreviews") , l]
 
 
 def traceUserInfuence(userId, depth):
     # Create a new connection
     con = connection()
+    
     # Create a cursor on the connection
     cur = con.cursor()
 
     user_ids = []
     business_ids = []
+    
     k = -1
-    depthcounter = 1
+    depthcounter = 1 # current depth
     arg1 = (userId,)
 
     while k < len(user_ids):
     
-        if k == -1:
-
+        if k == -1: # first time in While loop
             cu = cur.execute('SELECT f.friend_id, r1.business_id '
                              'FROM user u1, user u2, reviews r1, reviews r2, friends f '
                              'WHERE u1.user_id = ? and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
@@ -260,27 +254,23 @@ def traceUserInfuence(userId, depth):
         else:
             if depthcounter <= int(depth):
                 myargs = (user_ids[k], business_ids[k])
-                print user_ids[k], business_ids[k]
                 cu = cur.execute('SELECT f.friend_id, r1.business_id '
                                  'FROM user u1, user u2, reviews r1, reviews r2, friends f '
                                  'WHERE u1.user_id = ? and u1.user_id = f.user_id and u2.user_id = f.friend_id and '
                                  'u1.user_id = r1.user_id and u2.user_id = r2.user_id and '
                                  'r1.business_id = r2.business_id and r1.business_id = ? and r1.date < r2.date', myargs)
-            else:
+            else: # depthcounter has gone past the given depth
                 break
 
         for j in cu:
-            user_ids.append(j[0])
-            business_ids.append(j[1])
+            user_ids.append(j[0]) # store found user ids
+            business_ids.append(j[1]) # store found business ids
 
         depthcounter += 1
         k += 1
-        print user_ids
 
     l = []
     for i in user_ids:
         l.append(tuple([i]))
-    
-    print l
 
     return [("user_id",), l]
